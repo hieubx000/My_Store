@@ -1,27 +1,11 @@
-// api/auth
-const router = require('express').Router();
-const authController = require('./auth.controller');
-const authValid = require('./auth.validation');
-const validateInput = require('../../common/middlewares/validateInput');
-const getUser = require('../../common/middlewares/getUser');
+const router = require("express").Router();
+// middleware
+const { authCheck, adminCheck } = require("./auth.validation");
+// controller
+const { createOrUpdateUser, currentUser } = require("./auth.controller");
 
-// đăng ký, post
-// req.query
-router.post(
-  '/signup',
-  validateInput(authValid.signupSchema, 'body'),
-  authController.signUp);
-
-router.post(
-  '/login',
-  validateInput(authValid.loginSchema, 'body'),
-  authController.login
-);
-
-router.get(
-  '/me',
-  getUser,
-  authController.getUserInfo,
-);
+router.post("/create-or-update-user", authCheck, createOrUpdateUser);
+router.post("/current-user", authCheck, currentUser);
+router.post("/current-admin", authCheck, adminCheck, currentUser);
 
 module.exports = router;

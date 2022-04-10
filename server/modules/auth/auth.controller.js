@@ -1,77 +1,27 @@
-const bcrypt = require('bcryptjs');
-const UserModel = require('./user');
-const tokenProvider = require('../../common/tokenProvider');
-const HttpError = require('../../common/httpError');
+const User = require("../user/user");
 
-const signUp = async (req, res, next) => {
-  const { username, password } = req.body;
+exports.createOrUpdateUser = async (req, res) => {
+  const { name, picture, email } = req.user;
 
-  const existedUser = await UserModel.findOne({ username });
+  const user = await User.findOneAndUpdate({ email }, { name, picture }, { new: true });
 
-  if (existedUser) {
-    throw new HttpError('đăng ký thất bại', 400);
+  if (user) {
+    // console.log("USER UPDATED", user);
+    res.json(user);
+  } else {
+    const newUser = await new User({
+      email,
+      name: name ?? email.split("@")[0],
+      picture: picture ?? "https://firebasestorage.googleapis.com/v0/b/ecommerce-62fba.appspot.com/o/user.png?alt=media&token=bc8dc5bb-237f-497d-b59c-9672753d778b",
+    }).save();
+    // console.log("USER CREATED", newUser);
+    res.json(newUser);
   }
+};
 
-  const salt = await bcrypt.genSalt(10);
-  const hashPassword = await bcrypt.hash(password, salt);
-
-  const newUser = await UserModel.create({ username, password: hashPassword });
-
-  const token = tokenProvider.sign(newUser._id);
-
-  res.send({
-    success: 1,
-    data: {
-      _id: newUser._id,
-      username: newUser.username,
-      token,
-    },
+exports.currentUser = async (req, res) => {
+  User.findOne({ email: req.user.email }).exec((err, user) => {
+    if (err) throw new Error(err);
+    res.json(user);
   });
-};
-
-const login = async (req, res) => {
-    const { username, password } = req.body;
-    // validate user input
-    const existedUser = await UserModel.findOne({ username });
-
-    if (!existedUser) {
-      throw new HttpError('đăng nhập thất bại (không có username)', 400);
-    }
-
-    const hastPassword = existedUser.password;
-
-    const matchedPassword = await bcrypt.compare(password, hastPassword);
-
-    if (!matchedPassword) {
-      throw new HttpError('đăng nhập thất bại (password ko đúng)', 400);
-    }
-    // Là ai, được làm gì
-
-    const token = tokenProvider.sign(existedUser._id);
-
-    res.send({
-      success: 1,
-      data: {
-        _id: existedUser._id,
-        username: existedUser.username,
-        token,
-      },
-    });
-  
-};
-
-const getUserInfo = async (req, res) => {
-  const { user } = req;
-  const userInfo = user ? {
-    username: user.username,
-    _id: user._id
-  } : null;
-
-  res.send({ success: 1, data: userInfo });
-}
-
-module.exports = {
-  signUp,
-  login,
-  getUserInfo
 };
